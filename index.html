@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="仕入れ帳">
+<meta name="theme-color" content="#4f46e5">
+<title>仕入れブランド帳</title>
+<style>
+  :root{
+    --bg:#f4f4f7; --card:#ffffff; --ink:#1c1c28; --sub:#6b7280;
+    --line:#e6e6ee; --primary:#4f46e5; --primary-d:#3f37c9;
+    --accent:#0d9488; --warn:#dc2626; --chip:#eef0ff; --chip-ink:#4338ca;
+    --price:#ecfdf5; --price-ink:#047857;
+    --shadow:0 1px 3px rgba(20,20,40,.08),0 1px 2px rgba(20,20,40,.04);
+  }
+  /* ダークモード設定に関わらず常にライト固定 */
+  :root{color-scheme:light}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; padding:0; overflow-x:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6;
+    -webkit-text-size-adjust:100%;
+  }
+  img{max-width:100%}
+  button{font-family:inherit}
+  .wrap{max-width:640px; margin:0 auto; padding:0 14px 96px}
+
+  /* ===== ヘッダー ===== */
+  .topbar{
+    position:sticky; top:0; z-index:30; background:var(--bg);
+    padding:calc(env(safe-area-inset-top) + 10px) 14px 8px;
+    box-shadow:0 1px 0 var(--line);
+  }
+  .topbar .inner{max-width:640px; margin:0 auto}
+  .brandrow{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+  .applogo{font-size:20px; font-weight:800; letter-spacing:.5px; flex:1}
+  .applogo small{display:block; font-size:11px; font-weight:600; color:var(--sub); letter-spacing:1px}
+  .iconbtn{
+    width:40px; height:40px; border:none; border-radius:12px; background:var(--card);
+    color:var(--ink); font-size:20px; box-shadow:var(--shadow); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+  }
+  .searchrow{display:flex; gap:8px; align-items:center}
+  .search{
+    flex:1; display:flex; align-items:center; gap:8px; background:var(--card);
+    border:1px solid var(--line); border-radius:14px; padding:10px 14px; box-shadow:var(--shadow);
+  }
+  .search input{
+    flex:1; border:none; outline:none; background:transparent; color:var(--ink);
+    font-size:16px;
+  }
+  .search .mag{color:var(--sub); font-size:18px}
+  .clearx{border:none;background:transparent;color:var(--sub);font-size:18px;padding:4px;cursor:pointer}
+
+  /* ===== リスト ===== */
+  .count{font-size:12px; color:var(--sub); margin:14px 2px 8px}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    box-shadow:var(--shadow); margin-bottom:10px; overflow:hidden;
+  }
+  .listcard{display:flex; align-items:stretch; cursor:pointer}
+  .thumb{
+    width:78px; height:78px; flex:0 0 auto; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--sub);
+  }
+  .thumb img{width:100%; height:100%; object-fit:cover}
+  .thumb .ph{font-size:24px}
+  .listbody{padding:10px 12px; min-width:0; flex:1; display:flex; flex-direction:column; justify-content:center}
+  .listbody .nm{font-weight:700; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .listbody .kn{font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+  .chip{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--chip); color:var(--chip-ink); white-space:nowrap}
+  .chip.price{background:var(--price); color:var(--price-ink)}
+
+  /* 五十音インデックス */
+  .sec-h{font-size:13px; font-weight:800; color:var(--sub); padding:16px 6px 4px; letter-spacing:1px; scroll-margin-top:128px; border-bottom:1px solid var(--line); margin-bottom:8px}
+  body.railon #list{padding-right:18px}
+  .rail{position:fixed; right:max(2px,calc(50vw - 322px)); top:50%; transform:translateY(-50%); z-index:25; display:flex; flex-direction:column; align-items:center; background:rgba(127,127,140,.10); border-radius:10px; padding:5px 1px}
+  .rail button{border:none; background:transparent; color:var(--primary); font-size:11px; font-weight:800; line-height:1.4; padding:0 5px; cursor:pointer}
+  .rail.hidden{display:none}
+
+  /* ===== 空状態 ===== */
+  .empty{text-align:center; color:var(--sub); padding:60px 20px}
+  .empty .big{font-size:46px; margin-bottom:10px}
+  .empty p{margin:6px 0}
+
+  /* ===== 詳細 ===== */
+  .detailhead{display:flex; align-items:flex-start; gap:10px; padding:6px 2px 2px}
+  .detailhead .nm{font-size:24px; font-weight:800; line-height:1.25; word-break:break-word}
+  .detailhead .kn{font-size:13px; color:var(--sub); margin-top:2px}
+  .gallery{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:12px 0 4px}
+  .gallery.one{grid-template-columns:1fr}
+  .gallery img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:12px; border:1px solid var(--line); cursor:pointer}
+  .section{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px 14px; margin:10px 0; box-shadow:var(--shadow)}
+  .section h3{margin:0 0 4px; font-size:13px; color:var(--primary); letter-spacing:.5px}
+  .section .body{white-space:pre-wrap; word-break:break-word; font-size:15.5px}
+  .detailchips{display:flex; flex-wrap:wrap; gap:8px; margin:10px 0}
+  .detailchips .chip{font-size:13px; padding:6px 14px}
+  .actions{display:flex; gap:10px; margin:18px 0 8px}
+  .btn{flex:1; border:none; border-radius:14px; padding:14px; font-size:16px; font-weight:700; cursor:pointer}
+  .btn.primary{background:var(--primary); color:#fff}
+  .btn.ghost{background:var(--card); color:var(--ink); border:1px solid var(--line)}
+  .btn.danger{background:transparent; color:var(--warn); border:1px solid var(--warn)}
+
+  /* ===== フォーム ===== */
+  .field{margin:14px 0}
+  .field label{display:block; font-size:13px; font-weight:700; color:var(--sub); margin-bottom:6px}
+  .field input, .field textarea{
+    width:100%; border:1px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:12px; padding:12px 14px; font-size:16px; outline:none; resize:vertical;
+  }
+  .field input:focus, .field textarea:focus{border-color:var(--primary)}
+  .field textarea{min-height:84px; line-height:1.5}
+  .hint{font-size:11px; color:var(--sub); margin-top:4px}
+  .imgedit{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px}
+  .imgedit .slot{position:relative; aspect-ratio:1/1; border-radius:12px; overflow:hidden; border:1px solid var(--line)}
+  .imgedit .slot img{width:100%; height:100%; object-fit:cover}
+  .imgedit .slot .rm{position:absolute; top:4px; right:4px; width:26px; height:26px; border-radius:50%; border:none; background:rgba(0,0,0,.6); color:#fff; font-size:15px; cursor:pointer}
+  .addimg{
+    aspect-ratio:1/1; border:2px dashed var(--line); border-radius:12px; background:transparent;
+    color:var(--sub); font-size:13px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer;
+  }
+  .addimg .plus{font-size:26px; line-height:1}
+
+  /* ===== FAB ===== */
+  .fab{
+    position:fixed; right:18px; bottom:calc(env(safe-area-inset-bottom) + 18px); z-index:40;
+    width:60px; height:60px; border-radius:50%; border:none; background:var(--primary); color:#fff;
+    font-size:32px; box-shadow:0 6px 18px rgba(79,70,229,.45); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ===== メニュー / モーダル ===== */
+  .sheet-mask{position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50; display:none}
+  .sheet-mask.show{display:block}
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:51; background:var(--card);
+    border-radius:20px 20px 0 0; padding:10px 14px calc(env(safe-area-inset-bottom) + 14px);
+    max-width:640px; margin:0 auto; transform:translateY(100%); transition:transform .22s ease;
+  }
+  .sheet.show{transform:translateY(0)}
+  .sheet .grip{width:40px; height:4px; border-radius:2px; background:var(--line); margin:6px auto 12px}
+  .sheet button.row{
+    width:100%; text-align:left; border:none; background:transparent; color:var(--ink);
+    padding:15px 8px; font-size:16px; border-bottom:1px solid var(--line); cursor:pointer;
+    display:flex; align-items:center; gap:12px;
+  }
+  .sheet button.row:last-child{border-bottom:none}
+  .sheet button.row .ic{font-size:20px; width:24px; text-align:center}
+  .sheet button.row.danger{color:var(--warn)}
+
+  /* ===== ライトボックス ===== */
+  .lightbox{position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:60; display:none; align-items:center; justify-content:center}
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:96vw; max-height:90vh; object-fit:contain; border-radius:8px}
+  .lightbox .x{position:absolute; top:calc(env(safe-area-inset-top) + 12px); right:16px; width:44px; height:44px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:24px}
+
+  .hidden{display:none !important}
+  .toast{
+    position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 90px); transform:translateX(-50%);
+    background:#1c1c28; color:#fff; padding:11px 18px; border-radius:999px; font-size:14px; z-index:70;
+    opacity:0; transition:opacity .2s; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,.3); max-width:90vw; text-align:center;
+  }
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ===== ヘッダー ===== -->
+<div class="topbar" id="topbar">
+  <div class="inner">
+    <div class="brandrow" id="brandrow">
+      <button class="iconbtn hidden" id="backBtn" aria-label="戻る">‹</button>
+      <div class="applogo" id="appTitle">仕入れブランド帳<small>SHIIRE BRAND BOOK</small></div>
+      <button class="iconbtn" id="menuBtn" aria-label="メニュー">⋯</button>
+    </div>
+    <div class="searchrow" id="searchRow">
+      <div class="search">
+        <span class="mag">🔍</span>
+        <input id="searchInput" type="search" inputmode="search" placeholder="ブランド名で検索（カナ・特徴もOK）" autocomplete="off">
+        <button class="clearx hidden" id="clearSearch" aria-label="クリア">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- 一覧 -->
+  <div id="listView">
+    <div class="count" id="count"></div>
+    <div id="list"></div>
+  </div>
+
+  <!-- 詳細 -->
+  <div id="detailView" class="hidden"></div>
+
+  <!-- 編集 -->
+  <div id="editView" class="hidden"></div>
+</div>
+
+<!-- 五十音インデックス（右端ジャンプバー） -->
+<div class="rail hidden" id="rail"></div>
+
+<!-- FAB -->
+<button class="fab" id="fab" aria-label="追加">＋</button>
+
+<!-- メニューシート -->
+<div class="sheet-mask" id="sheetMask"></div>
+<div class="sheet" id="menuSheet">
+  <div class="grip"></div>
+  <button class="row" id="mAdd"><span class="ic">＋</span>新しいブランドを追加</button>
+  <button class="row" id="mExport"><span class="ic">⬇️</span>バックアップを書き出す</button>
+  <button class="row" id="mImport"><span class="ic">⬆️</span>バックアップから復元</button>
+  <button class="row" id="mSample"><span class="ic">✨</span>サンプルを読み込む</button>
+</div>
+
+<!-- ライトボックス -->
+<div class="lightbox" id="lightbox"><button class="x" id="lbClose">✕</button><img id="lbImg" alt=""></div>
+
+<input type="file" id="importFile" accept="application/json,.json" class="hidden">
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   仕入れブランド帳 — 単一ファイルWebアプリ
+   データは端末内(IndexedDB)に保存。写真は自動圧縮。
+   ========================================================= */
+
+/* ---------- IndexedDB ラッパ ---------- */
+const DB_NAME='shiireBrandDB', STORE='brands';
+let _db=null;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:'id'});
+    };
+    r.onsuccess=e=>{_db=e.target.result; res(_db);};
+    r.onerror=e=>rej(e.target.error);
+  });
+}
+function tx(mode){return _db.transaction(STORE,mode).objectStore(STORE);}
+function dbGetAll(){return new Promise((res,rej)=>{const r=tx('readonly').getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error);});}
+function dbPut(o){return new Promise((res,rej)=>{const r=tx('readwrite').put(o); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);});}
+function dbDel(id){return new Promise((res,rej)=>{const r=tx('readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);});}
+
+/* ---------- 状態 ---------- */
+let brands=[];          // メモリ上のキャッシュ
+let view='list';        // list | detail | edit
+let curId=null;
+let q='';
+
+/* ---------- ユーティリティ ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function toast(msg){const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900);}
+
+/* 画像を圧縮して dataURL に */
+function compress(file,max=1200,quality=0.72){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      let{width:w,height:h}=img;
+      if(w>max||h>max){const s=Math.min(max/w,max/h); w=Math.round(w*s); h=Math.round(h*s);}
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      res(cv.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>res(null);
+    const fr=new FileReader(); fr.onload=()=>img.src=fr.result; fr.readAsDataURL(file);
+  });
+}
+
+/* ---------- 検索 ---------- */
+// カタカナ→ひらがな＋小文字化（検索を かな/カナ どちらでもヒットさせる）
+function norm(s){return (s||'').toLowerCase().replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));}
+// メモ本文（旧データは旧項目を結合して救済）
+function memoOf(b){
+  if(!b) return '';
+  if(b.memo!=null && b.memo!=='') return b.memo;
+  const parts=[];
+  if(b.features) parts.push(b.features);
+  if(b.sellers) parts.push('【売れ筋・狙い目】\n'+b.sellers);
+  if(b.identify) parts.push('【見分け方・タグ】\n'+b.identify);
+  if(b.notes) parts.push(b.notes);
+  return parts.join('\n\n');
+}
+function filtered(){
+  if(!q) return [...brands].sort(sortBrand);
+  const k=norm(q);
+  return brands.filter(b=>(
+    norm(b.name).includes(k)||
+    norm(b.kana).includes(k)||
+    norm(memoOf(b)).includes(k)
+  )).sort(sortBrand);
+}
+function readingOf(b){return (b.kana&&b.kana.trim())?b.kana.trim():(b.name||'');}
+function sortBrand(a,b){return readingOf(a).localeCompare(readingOf(b),'ja');}
+
+/* 五十音グルーピング（読み＝カナ優先で行を判定） */
+const GOJUON=[
+  ['あ','あいうえおぁぃぅぇぉゔ'],
+  ['か','かきくけこがぎぐげごゕゖ'],
+  ['さ','さしすせそざじずぜぞ'],
+  ['た','たちつてとだぢづでどっ'],
+  ['な','なにぬねの'],
+  ['は','はひふへほばびぶべぼぱぴぷぺぽ'],
+  ['ま','まみむめも'],
+  ['や','やゆよゃゅょ'],
+  ['ら','らりるれろ'],
+  ['わ','わをんゎ'],
+];
+const ROW_ORDER=[...GOJUON.map(r=>r[0]),...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),'#'];
+function rowOf(b){
+  let c=(readingOf(b).trim()[0]||'');
+  if(!c) return '#';
+  const code=c.charCodeAt(0);
+  if(code>=0x30A1&&code<=0x30F6) c=String.fromCharCode(code-0x60); // カナ→かな
+  for(const [label,set] of GOJUON){ if(set.indexOf(c)>=0) return label; }
+  if(/[a-zA-Z]/.test(c)) return c.toUpperCase();
+  return '#';
+}
+
+/* ========================================================
+   描画
+   ======================================================== */
+function show(v){
+  view=v;
+  $('#listView').classList.toggle('hidden',v!=='list');
+  $('#detailView').classList.toggle('hidden',v!=='detail');
+  $('#editView').classList.toggle('hidden',v!=='edit');
+  $('#searchRow').classList.toggle('hidden',v!=='list');
+  $('#backBtn').classList.toggle('hidden',v==='list');
+  $('#menuBtn').classList.toggle('hidden',v!=='list');
+  $('#fab').classList.toggle('hidden',v!=='list');
+  $('#appTitle').classList.toggle('hidden',v!=='list');
+  if(v!=='list'){ $('#rail').classList.add('hidden'); document.body.classList.remove('railon'); }
+  window.scrollTo(0,0);
+}
+
+/* ----- 一覧 ----- */
+function card(b){
+  const img=(b.images&&b.images[0])?`<img src="${b.images[0]}" alt="">`:'<span class="ph">🏷️</span>';
+  const memo=memoOf(b).replace(/\s+/g,' ').trim();
+  return `<div class="card listcard" onclick="openDetail('${b.id}')">
+    <div class="thumb">${img}</div>
+    <div class="listbody">
+      <div class="nm">${esc(b.name)}</div>
+      ${b.kana?`<div class="kn">${esc(b.kana)}</div>`:''}
+      ${memo?`<div class="kn" style="opacity:.85">${esc(memo.slice(0,42))}${memo.length>42?'…':''}</div>`:''}
+    </div>
+  </div>`;
+}
+function setRail(sections){
+  const rail=$('#rail');
+  if(!sections||sections.length<2){rail.innerHTML=''; rail.classList.add('hidden'); document.body.classList.remove('railon'); return;}
+  rail.classList.remove('hidden'); document.body.classList.add('railon');
+  rail.innerHTML=sections.map((s,i)=>`<button onclick="jumpTo(${i})">${esc(s.label)}</button>`).join('');
+}
+function jumpTo(i){const el=document.getElementById('sec-'+i); if(el) el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+function renderList(){
+  const el=$('#list');
+  // 1) まだ1件もない
+  if(brands.length===0){
+    $('#count').textContent=''; setRail([]);
+    el.innerHTML=`<div class="empty"><div class="big">📒</div>
+      <p><b>まだブランドがありません</b></p>
+      <p>右下の ＋ から最初のブランドを追加しましょう。</p>
+      <p style="margin-top:14px"><button class="btn primary" style="max-width:240px;margin:0 auto" onclick="openEdit(null)">＋ 最初のブランドを追加</button></p>
+      <p style="margin-top:8px"><button class="btn ghost" style="max-width:240px;margin:0 auto" onclick="loadSamples()">✨ サンプルを見てみる</button></p>
+      </div>`;
+    return;
+  }
+  // 2) 検索中：フラットな絞り込み結果（インデックスなし）
+  if(q){
+    const items=filtered();
+    $('#count').textContent=`${items.length}件 / 全${brands.length}件`; setRail([]);
+    el.innerHTML = items.length ? items.map(card).join('')
+      : `<div class="empty"><div class="big">🔍</div><p>「${esc(q)}」に一致するブランドはありません</p></div>`;
+    return;
+  }
+  // 3) ブラウズ：五十音グループ＋右端インデックス
+  const sorted=[...brands].sort(sortBrand);
+  const groups=new Map();
+  for(const b of sorted){const r=rowOf(b); if(!groups.has(r))groups.set(r,[]); groups.get(r).push(b);}
+  const sections=ROW_ORDER.filter(l=>groups.has(l)).map(l=>({label:l,items:groups.get(l)}));
+  $('#count').textContent=`全${brands.length}件（あ→わ順）`;
+  el.innerHTML=sections.map((s,i)=>`<div class="sec-h" id="sec-${i}">${esc(s.label)}</div>`+s.items.map(card).join('')).join('');
+  setRail(sections);
+}
+
+/* ----- 詳細（縦1画面・横スクロールなし） ----- */
+function openDetail(id){curId=id; renderDetail(); show('detail');}
+function renderDetail(){
+  const b=brands.find(x=>x.id===curId);
+  if(!b){show('list'); return;}
+  const imgs=b.images||[];
+  const gallery = imgs.length
+    ? `<div class="gallery${imgs.length===1?' one':''}">${imgs.map((s,i)=>`<img src="${s}" onclick="lightbox('${b.id}',${i})" alt="">`).join('')}</div>`
+    : '';
+  const memo=memoOf(b);
+  $('#detailView').innerHTML=`
+    <div class="detailhead">
+      <div style="flex:1;min-width:0">
+        <div class="nm">${esc(b.name)}</div>
+        ${b.kana?`<div class="kn">${esc(b.kana)}</div>`:''}
+      </div>
+    </div>
+    ${gallery}
+    ${memo?`<div class="section"><div class="body">${esc(memo)}</div></div>`:''}
+    <div class="actions">
+      <button class="btn ghost" onclick="openEdit('${b.id}')">✏️ 編集</button>
+      <button class="btn danger" onclick="removeBrand('${b.id}')">🗑 削除</button>
+    </div>`;
+}
+
+/* ----- 編集/追加フォーム ----- */
+let formImgs=[];   // 編集中の画像配列
+function openEdit(id){
+  curId=id;
+  const b = id ? brands.find(x=>x.id===id) : null;
+  formImgs = b ? [...(b.images||[])] : [];
+  $('#editView').innerHTML=`
+    <h2 style="margin:8px 2px 0;font-size:20px">${b?'ブランドを編集':'新しいブランド'}</h2>
+    <div class="field"><label>ブランド名（必須）</label><input id="f_name" value="${esc(b?.name||'')}" placeholder="例）Theory"></div>
+    <div class="field"><label>カナ・読み</label><input id="f_kana" value="${esc(b?.kana||'')}" placeholder="例）セオリー"></div>
+    <div class="field"><label>メモ（特徴・売れ筋・見分け方など自由に）</label><textarea id="f_memo" style="min-height:220px" placeholder="特徴・売れ筋・狙い目・見分け方・タグの特徴など、何でも自由に記入">${esc(memoOf(b))}</textarea></div>
+    <div class="field">
+      <label>写真</label>
+      <div class="imgedit" id="imgEdit"></div>
+      <div class="hint">タップで撮影・ライブラリ選択。自動で圧縮されます。</div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" onclick="cancelEdit()">キャンセル</button>
+      <button class="btn primary" onclick="saveBrand()">保存</button>
+    </div>
+    <input type="file" id="imgInput" accept="image/*" multiple class="hidden">`;
+  renderImgEdit();
+  $('#imgInput').addEventListener('change',onPickImages);
+  show('edit');
+}
+function renderImgEdit(){
+  const box=$('#imgEdit');
+  box.innerHTML = formImgs.map((s,i)=>`<div class="slot"><img src="${s}" alt=""><button class="rm" onclick="rmImg(${i})">✕</button></div>`).join('')
+    + `<button class="addimg" onclick="document.getElementById('imgInput').click()"><span class="plus">＋</span>写真追加</button>`;
+}
+function rmImg(i){formImgs.splice(i,1); renderImgEdit();}
+async function onPickImages(e){
+  const files=[...e.target.files]; e.target.value='';
+  if(!files.length) return;
+  toast('画像を処理中…');
+  for(const f of files){const d=await compress(f); if(d) formImgs.push(d);}
+  renderImgEdit(); toast('追加しました');
+}
+function cancelEdit(){ curId && brands.find(x=>x.id===curId) ? (renderDetail(),show('detail')) : show('list'); }
+
+async function saveBrand(){
+  const name=$('#f_name').value.trim();
+  if(!name){toast('ブランド名を入力してください'); $('#f_name').focus(); return;}
+  const existing = curId ? brands.find(x=>x.id===curId) : null;
+  const o={
+    id: existing?existing.id:uid(),
+    name,
+    kana:$('#f_kana').value.trim(),
+    memo:$('#f_memo').value.trim(),
+    images:[...formImgs],
+    createdAt: existing?existing.createdAt:Date.now(),
+    updatedAt: Date.now()
+  };
+  await dbPut(o);
+  const i=brands.findIndex(x=>x.id===o.id);
+  if(i>=0) brands[i]=o; else brands.push(o);
+  curId=o.id;
+  toast('保存しました');
+  renderDetail(); show('detail'); renderList();
+}
+async function removeBrand(id){
+  const b=brands.find(x=>x.id===id);
+  if(!confirm(`「${b?.name||''}」を削除しますか？`)) return;
+  await dbDel(id);
+  brands=brands.filter(x=>x.id!==id);
+  toast('削除しました'); renderList(); show('list');
+}
+
+/* ----- ライトボックス ----- */
+function lightbox(id,i){const b=brands.find(x=>x.id===id); if(!b)return; $('#lbImg').src=b.images[i]; $('#lightbox').classList.add('show');}
+$('#lbClose').onclick=()=>$('#lightbox').classList.remove('show');
+$('#lightbox').onclick=e=>{if(e.target.id==='lightbox')$('#lightbox').classList.remove('show');};
+
+/* ----- メニュー ----- */
+function openSheet(){$('#sheetMask').classList.add('show'); $('#menuSheet').classList.add('show');}
+function closeSheet(){$('#sheetMask').classList.remove('show'); $('#menuSheet').classList.remove('show');}
+$('#menuBtn').onclick=openSheet;
+$('#sheetMask').onclick=closeSheet;
+$('#mAdd').onclick=()=>{closeSheet(); openEdit(null);};
+$('#mExport').onclick=()=>{closeSheet(); exportData();};
+$('#mImport').onclick=()=>{closeSheet(); $('#importFile').click();};
+$('#mSample').onclick=()=>{closeSheet(); loadSamples();};
+
+/* ----- バックアップ ----- */
+function exportData(){
+  const data={app:'shiire-brand-book',version:1,exportedAt:new Date().toISOString(),brands};
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const d=new Date(); const pad=n=>String(n).padStart(2,'0');
+  a.href=url; a.download=`仕入れブランド帳_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('バックアップを書き出しました');
+}
+$('#importFile').addEventListener('change',async e=>{
+  const file=e.target.files[0]; e.target.value=''; if(!file) return;
+  try{
+    const text=await file.text();
+    const data=JSON.parse(text);
+    const incoming = Array.isArray(data)?data:(data.brands||[]);
+    if(!Array.isArray(incoming)||!incoming.length){toast('読み込めるデータがありません'); return;}
+    if(!confirm(`${incoming.length}件を読み込みます。\n同じブランドは上書き、無いものは追加します。よろしいですか？`)) return;
+    for(const b of incoming){
+      if(!b.id) b.id=uid();
+      await dbPut(b);
+      const i=brands.findIndex(x=>x.id===b.id);
+      if(i>=0) brands[i]=b; else brands.push(b);
+    }
+    renderList(); toast('復元しました');
+  }catch(err){toast('ファイルを読み込めませんでした');}
+});
+
+/* ----- サンプル ----- */
+async function loadSamples(){
+  if(brands.length && !confirm('サンプルを3件追加します。よろしいですか？')) return;
+  const samples=[
+    {name:'Theory',kana:'セオリー',memo:'【特徴】上質素材ときれいめシルエットのコンテンポラリー。オフィスカジュアルに強い。\n【売れ筋・狙い目】ジャケット/パンツ/ニットが安定。黒・ネイビーが鉄板。サイズ2(M相当)が動く。\n【見分け方・タグ】黒地に白文字のブランドタグ。素材表示タグで「Theory」表記を確認。\n【メモ】セカストで頻出。状態良ければ狙い目。'},
+    {name:'BEAMS',kana:'ビームス',memo:'【特徴】国内大手セレクト。自社レーベルが豊富で価格帯も広い。\n【売れ筋・狙い目】シャツ/アウター/小物。レーベル(Beams Plus等)で相場が変わる。\n【見分け方・タグ】レーベルごとにタグが異なる。「Beams Plus」「International Gallery」等は高め。\n【メモ】タグのレーベル名でメルカリ相場をチェック。'},
+    {name:'snidel',kana:'スナイデル',memo:'【特徴】フェミニン系レディースの定番。ワンピ/スカートに強くファンが多い。\n【売れ筋・狙い目】ワンピース/セットアップ/フリル系。シーズン物は早めが吉。\n【見分け方・タグ】タグに「snidel」ロゴ。サイズ表記は0/1/2。\n【メモ】人気色・新作は高値がつきやすい。'}
+  ];
+  for(const s of samples){
+    const o={id:uid(),memo:'',images:[],createdAt:Date.now(),updatedAt:Date.now(),...s};
+    await dbPut(o); brands.push(o);
+  }
+  renderList(); show('list'); toast('サンプルを追加しました');
+}
+
+/* ----- 検索/戻る/FAB ----- */
+$('#searchInput').addEventListener('input',e=>{
+  q=e.target.value.trim();
+  $('#clearSearch').classList.toggle('hidden',!q);
+  renderList();
+});
+$('#clearSearch').onclick=()=>{$('#searchInput').value=''; q=''; $('#clearSearch').classList.add('hidden'); renderList();};
+$('#backBtn').onclick=()=>{ view==='edit' ? cancelEdit() : show('list'); };
+$('#fab').onclick=()=>openEdit(null);
+
+/* ----- 起動 ----- */
+(async()=>{
+  try{
+    await openDB();
+    brands=await dbGetAll();
+  }catch(e){ toast('保存領域を開けませんでした'); }
+  renderList(); show('list');
+})();
+</script>
+</body>
+</html>
