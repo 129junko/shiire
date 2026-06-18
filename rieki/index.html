@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="利益計算">
+<meta name="theme-color" content="#faf6ea">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>利益計算</title>
+<style>
+  :root{
+    --bg:#faf6ea;        /* アイボリー */
+    --card:#fffdf6;
+    --card2:#f3eedd;     /* 入力欄の背景 */
+    --line:#e3dcc6;
+    --text:#1a1a1a;      /* 黒 */
+    --sub:#8c8470;
+    --accent:#ff5252;    /* 選択ボタン（メルカリレッド寄り） */
+    --chip:#efe9d8;
+    --chip-on:#ff5252;
+    --plus:#1565d8;      /* 手残りプラス＝青 */
+    --minus:#e02020;     /* 手残りマイナス＝赤 */
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:16px 16px 40px;}
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:6px 2px 14px;
+  }
+  header h1{font-size:20px;margin:0;font-weight:800;letter-spacing:.02em;}
+  .reset{
+    background:none;border:1px solid var(--line);color:var(--sub);
+    font-size:13px;padding:7px 12px;border-radius:999px;cursor:pointer;
+  }
+  .reset:active{background:var(--card2);}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .label{font-size:13px;color:var(--sub);margin:0 0 8px;font-weight:700;}
+
+  /* 金額入力 */
+  .money{position:relative;display:flex;align-items:center;
+    background:var(--card2);border:1px solid var(--line);border-radius:14px;
+    padding:0 16px;}
+  .money .yen{font-size:22px;color:var(--sub);font-weight:700;margin-right:6px;}
+  .money input{
+    flex:1;background:none;border:none;outline:none;color:var(--text);
+    font-size:30px;font-weight:800;padding:16px 0;width:100%;text-align:right;
+    letter-spacing:.01em;
+  }
+  .money input::placeholder{color:#bcb39a;font-weight:700;}
+
+  /* セグメント（選択ボタン） */
+  .seg{display:flex;gap:8px;flex-wrap:wrap;}
+  .seg button{
+    flex:1;min-width:64px;
+    background:var(--chip);border:1px solid var(--line);color:var(--text);
+    font-size:16px;font-weight:700;padding:13px 6px;border-radius:12px;cursor:pointer;
+    transition:.08s;
+  }
+  .seg button .sub{display:block;font-size:11px;color:var(--sub);font-weight:600;margin-top:2px;}
+  .seg button.on{background:var(--chip-on);border-color:var(--chip-on);color:#fff;}
+  .seg button.on .sub{color:rgba(255,255,255,.85);}
+  .seg button:active{transform:scale(.97);}
+
+  /* 手入力欄（条件表示） */
+  .custom{margin-top:10px;display:none;}
+  .custom.show{display:block;}
+  .custom .money{padding:0 14px;}
+  .custom .money input{font-size:22px;padding:12px 0;}
+  .custom .money .yen{font-size:18px;}
+
+  /* 結果 */
+  .result{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:20px;padding:20px 18px;margin-top:4px;
+  }
+  .result .rlabel{font-size:14px;color:var(--sub);font-weight:700;margin:0 0 4px;}
+  .result .amount{font-size:46px;font-weight:900;letter-spacing:.01em;line-height:1.1;}
+  .result .amount.pos{color:var(--plus);}
+  .result .amount.neg{color:var(--minus);}
+  .rate{font-size:14px;color:var(--sub);margin-top:8px;font-weight:600;}
+  .rate b{color:var(--text);font-size:16px;}
+
+  .hint{font-size:11px;color:#a89e84;text-align:center;margin-top:18px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💰 利益計算</h1>
+    <button class="reset" id="reset">クリア</button>
+  </header>
+
+  <!-- 販売額 -->
+  <div class="card">
+    <p class="label">販売額</p>
+    <div class="money">
+      <span class="yen">¥</span>
+      <input id="price" type="text" inputmode="numeric" placeholder="0" autocomplete="off">
+    </div>
+  </div>
+
+  <!-- 手数料 -->
+  <div class="card">
+    <p class="label">手数料</p>
+    <div class="seg" id="feeSeg">
+      <button data-fee="10" class="on">10%</button>
+      <button data-fee="15">15%</button>
+      <button data-fee="custom">手入力<span class="sub">%</span></button>
+    </div>
+    <div class="custom" id="feeCustom">
+      <div class="money">
+        <input id="feeInput" type="text" inputmode="decimal" placeholder="例) 12" autocomplete="off" style="text-align:left">
+        <span class="yen" style="margin:0 0 0 4px">%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 送料 -->
+  <div class="card">
+    <p class="label">送料</p>
+    <div class="seg" id="shipSeg">
+      <button data-ship="210" class="on">¥210</button>
+      <button data-ship="750">¥750</button>
+      <button data-ship="850">¥850</button>
+      <button data-ship="custom">手入力</button>
+    </div>
+    <div class="custom" id="shipCustom">
+      <div class="money">
+        <span class="yen">¥</span>
+        <input id="shipInput" type="text" inputmode="numeric" placeholder="例) 520" autocomplete="off">
+      </div>
+    </div>
+  </div>
+
+  <!-- 仕入れ価格 -->
+  <div class="card">
+    <p class="label">仕入れ価格</p>
+    <div class="money">
+      <span class="yen">¥</span>
+      <input id="cost" type="text" inputmode="numeric" placeholder="0" autocomplete="off">
+    </div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="result">
+    <p class="rlabel">手残り</p>
+    <div class="amount pos" id="profit">¥0</div>
+    <div class="rate" id="rate">利益率 —</div>
+  </div>
+
+  <p class="hint">手残り ＝ 販売額 −手数料 −送料 −仕入れ価格<br>入力すると自動で計算されます</p>
+</div>
+
+<script>
+(function(){
+  var price = document.getElementById('price');
+  var cost  = document.getElementById('cost');
+  var feeInput  = document.getElementById('feeInput');
+  var shipInput = document.getElementById('shipInput');
+
+  var state = { fee:10, feeMode:'preset', ship:210, shipMode:'preset' };
+
+  function num(v){ var n = parseFloat(String(v).replace(/[^0-9.]/g,'')); return isNaN(n)?0:n; }
+
+  function currentFee(){ return state.feeMode==='custom' ? num(feeInput.value) : state.fee; }
+  function currentShip(){ return state.shipMode==='custom' ? num(shipInput.value) : state.ship; }
+
+  function calc(){
+    var p = num(price.value);
+    var c = num(cost.value);
+    var feeRate = currentFee();
+    var ship = currentShip();
+    var feeAmt = p * feeRate / 100;
+    var profit = p - feeAmt - ship - c;
+
+    var el = document.getElementById('profit');
+    el.textContent = (profit<0?'-':'') + '¥' + Math.abs(Math.round(profit)).toLocaleString('ja-JP');
+    el.className = 'amount ' + (profit<0 ? 'neg' : 'pos');
+
+    var rate = document.getElementById('rate');
+    if(p>0){
+      var r = profit / p * 100;
+      rate.innerHTML = '利益率 <b>' + r.toFixed(1) + '%</b>';
+    } else {
+      rate.innerHTML = '利益率 —';
+    }
+  }
+
+  // セグメント：手数料
+  document.getElementById('feeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    [].forEach.call(this.children, function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    var v = b.getAttribute('data-fee');
+    if(v==='custom'){
+      state.feeMode='custom';
+      document.getElementById('feeCustom').classList.add('show');
+      feeInput.focus();
+    } else {
+      state.feeMode='preset'; state.fee=parseFloat(v);
+      document.getElementById('feeCustom').classList.remove('show');
+    }
+    calc();
+  });
+
+  // セグメント：送料
+  document.getElementById('shipSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    [].forEach.call(this.children, function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    var v = b.getAttribute('data-ship');
+    if(v==='custom'){
+      state.shipMode='custom';
+      document.getElementById('shipCustom').classList.add('show');
+      shipInput.focus();
+    } else {
+      state.shipMode='preset'; state.ship=parseFloat(v);
+      document.getElementById('shipCustom').classList.remove('show');
+    }
+    calc();
+  });
+
+  ['input','keyup','change'].forEach(function(ev){
+    price.addEventListener(ev, calc);
+    cost.addEventListener(ev, calc);
+    feeInput.addEventListener(ev, calc);
+    shipInput.addEventListener(ev, calc);
+  });
+
+  // クリア
+  document.getElementById('reset').addEventListener('click', function(){
+    price.value=''; cost.value=''; feeInput.value=''; shipInput.value='';
+    state={ fee:10, feeMode:'preset', ship:210, shipMode:'preset' };
+    var fs=document.getElementById('feeSeg').children;
+    fs[0].classList.add('on'); fs[1].classList.remove('on'); fs[2].classList.remove('on');
+    var ss=document.getElementById('shipSeg').children;
+    ss[0].classList.add('on'); ss[1].classList.remove('on'); ss[2].classList.remove('on'); ss[3].classList.remove('on');
+    document.getElementById('feeCustom').classList.remove('show');
+    document.getElementById('shipCustom').classList.remove('show');
+    calc();
+    price.focus();
+  });
+
+  calc();
+})();
+</script>
+</body>
+</html>
